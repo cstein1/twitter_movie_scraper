@@ -1,0 +1,139 @@
+org: jordankoeller
+app: twitter-vid-archiver
+service: ArchiveVidTwitterBot
+plugins:
+- serverless-dotenv-plugin
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  stage: beta
+  memorySize: 128
+  timeout: 100
+  logRetentionInDays: 30
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - "Fn::Join":
+          - ':'
+          - - "arn:aws:sns:us-east-1"
+            - Ref: AWS::AccountId
+            - "newMention"
+    - Effect: Allow
+      Action:
+        - cloudwatch:PutMetricData
+      Resource:
+        - "*"
+
+  environment:
+    TWITTER_CONSUMER_KEY: ${env:TWITTER_CONSUMER_KEY}
+    TWITTER_CONSUMER_SECRET: ${env:TWITTER_CONSUMER_SECRET}
+    TWITTER_ACCESS_TOKEN: ${env:TWITTER_ACCESS_TOKEN}
+    TWITTER_ACCESS_TOKEN_SECRET: ${env:TWITTER_ACCESS_TOKEN_SECRET}
+    TWITTER_CALLBACK_URL: ${env:TWITTER_CALLBACK_URL}
+    # REDIS_HOSTNAME: ${env:REDIS_HOSTNAME}
+    # REDIS_PORT: ${env:REDIS_PORT}
+    # REDIS_PASSWORD: ${env:REDIS_PASSWORD}
+    TWITTER_SCREEN_NAME: ${env:TWITTER_SCREEN_NAME}
+    EXTERNAL_URL: ${env:EXTERNAL_URL}
+    # FIREBASE_PROJECT_ID: ${env:FIREBASE_PROJECT_ID}
+    # GTAG_ID: ${env:GTAG_ID}
+    # AD_CODE: ${env:AD_CODE}
+    TOPIC_ARN:
+      "Fn::Join":
+      - ':'
+      -
+        - "arn:aws:sns:us-east-1"
+        - Ref: AWS::AccountId
+        - "newMention"
+
+package:
+  include:
+  - views/**
+  exclude:
+  - "*.md"
+  - "*.png"
+  - "*.ico"
+  - .*
+  - .*/**
+  - awscli-bundle.zip
+  - awscli-bundle/**
+  - spec/**
+  - assets/*.png
+
+functions:
+  fetchTweetsToDownload:
+    handler: handler.fetchTweetsToDownload
+    events:
+    - schedule: rate(1 minute)
+    alarms:
+    - functionErrors
+    - name: functionDuration
+      threshold: 5000
+
+  retryFailedTasks:
+    handler: handler.retryFailedTasks
+
+  sendDownloadLink:
+    handler: handler.sendDownloadLink
+    events:
+    - sns: newMention
+    alarms:
+    - functionErrors
+    - name: functionDuration
+      threshold: 5000
+
+  # startTwitterSignIn:
+  #   handler: handler.startTwitterSignIn
+  #   events:
+  #     - http:
+  #         path: /_/starttwittersignin
+  #         method: get
+
+  # completeTwitterSignIn:
+  #   handler: handler.completeTwitterSignIn
+  #   events:
+  #     - http:
+  #         path: /_/completetwittersignin
+  #         method: get
+  #         request:
+  #           parameters:
+  #             querystrings:
+  #               username: true
+  #               action: false
+  #               fbtoken: false
+
+  # page:
+  #   handler: handler.page
+  #   events:
+  #     - http:
+  #         path: /p/{page}
+  #         method: get
+  #         request:
+  #           parameters:
+  #             paths:
+  #               page: true
+
+# custom:
+#   alerts:
+#     definitions:
+#       functionErrors:
+#         # alert if function throws an error
+#         threshold: 1
+#         period: 60
+#         treatMissingData: notBreaching
+#       functionDuration:
+#         # alert if function takes more than 2 seconds too many times
+#         threshold: 2000
+#         period: 60
+#         datapointsToAlarm: 10
+#         evaluationPeriods: 30
+#         treatMissingData: notBreaching
+#     topics:
+#       alarm:
+#         topic: ${self:service}-dev-alerts-alarm
+#         notifications:
+#         - protocol: email
+#           endpoint: jkoeller12@gmailc.om

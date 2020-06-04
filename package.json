@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "description": "",
+  "main": "handler.js",
+  "scripts": {
+    "lint": "eslint src handler.js",
+    "test-init": "jasmine init",
+    "test": "jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shalvah/DownloadThisVideo.git"
+  },
+  "engines": {
+    "node": "8.10.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shalvah/NotYourNass/issues"
+  },
+  "homepage": "https://github.com/shalvah/NotYourNass#readme",
+  "dependencies": {
+    "aargh": "^1.2.0",
+    "aws-sdk": "^2.568.0",
+    "bluebird": "^3.7.1",
+    "firebase-admin": "^8.7.0",
+    "handlebars": "^4.5.2",
+    "lodash.chunk": "^4.2.0",
+    "redis": "^2.8.0",
+    "twit": "^2.2.9",
+    "twitter-error-handler": "^2.1.0",
+    "twittersignin": "^1.0.0"
+  },
+  "devDependencies": {
+    "dotenv": "^8.2.0",
+    "eslint": "^6.6.0",
+    "jasmine": "^3.5.0",
+    "mitm": "^1.7.0",
+    "mock-require": "^3.0.3",
+    "redis-mock": "^0.46.0",
+    "serverless-plugin-aws-alerts": "^1.4.0",
+    "serverless-dotenv-plugin": "^2.1.1"
+  }
+}
