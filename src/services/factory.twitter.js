@@ -37,6 +37,7 @@ module.exports = (cache) => {
             .then(tweets => tweets.filter(and(isTweetAReply, not(isTweetAReplyToMe))))
             .then(tweets => tweets.map(tweetObject => {
                 return {
+                    ...tweetObject,
                     id: tweetObject.id_str,
                     time: tweetObject.created_at,
                     referencing_tweet: tweetObject.in_reply_to_status_id_str,

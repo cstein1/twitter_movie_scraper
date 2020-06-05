@@ -2,13 +2,13 @@
 
 // const cache = require('./src/services/cache');
 
-const dbClient = {};
+const cache = require('./src/services/dynamodb');
 
 const {finish, getRelativeTime} = require('./src/utils');
 const sns = require('./src/services/sns');
 const cloudwatch = require('./src/services/cloudwatch');
 const ops = require('./src/services/tweet_operations');
-const twitter = require('./src/services/factory.twitter')(dbClient);
+const twitter = require('./src/services/factory.twitter')(cache);
 const twitterSignIn = require('twittersignin')({
     consumerKey: process.env.TWITTER_CONSUMER_KEY,
     consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
@@ -18,13 +18,18 @@ const twitterSignIn = require('twittersignin')({
 const chunk = require("lodash.chunk");
 
 module.exports.fetchTweetsToDownload = async (event, context) => {
-    let lastTweetRetrieved = null;
+    let lastTweetRetrieved = await cache.getAsync('lastTweetRetrieved');
     let count = 0;
-    let mentions = await twitter.getMentions();
+    console.log("Last tweet UPDATED", lastTweetRetrieved);
+    let mentions = await twitter.getMentions(lastTweetRetrieved); // clean
+    console.log(mentions.map(e => e.id));
     while (mentions.length) {
-        await sns.sendToSns(mentions);
-        lastTweetRetrieved = mentions[0].id;
-        count += mentions.length;
+        for (let i=0; i<mentions.length; i += 5) {
+            const slc = mentions.slice(i, Math.min(mentions.length, i + 5));
+            await sns.sendToSns(slc);
+            count += slc.length;
+        }
+        lastTweetRetrieved = mentions[mentions.length - 1].id;
         mentions = await twitter.getMentions(lastTweetRetrieved);
     }
 
@@ -44,7 +49,7 @@ module.exports.sendDownloadLink = async (event, context) => {
             let tweet = chunk.find(t => t.referencing_tweet === tweetObject.id_str);
             return ops.extractVideoLink(tweetObject, {cache, twitter})
                 .then(link => ops.handleTweetProcessingSuccess(tweet, link, {cache, twitter}))
-                .catch(e => ops.handleTweetProcessingError(e, tweet, {cache, twitter, tweetObject}));
+                // .catch(e => ops.handleTweetProcessingError(e, tweet, {cache, twitter, tweetObject}));
         }));
 
         results = results.filter(r => r !== null);
@@ -54,13 +59,13 @@ module.exports.sendDownloadLink = async (event, context) => {
 };
 
 module.exports.retryFailedTasks = async (event, context) => {
-    const tweets = await cache.lrangeAsync('Fail', 0, -1);
+    const tweets = await cache.getFailures();
 
     if (!tweets.length) {
         return finish().success(`No tasks for retrying`);
     }
     await sns.sendToSns(tweets.map(JSON.parse));
-    await cache.delAsync('Fail');
+    await cache.delFailures();
     return finish().success(`Sent ${tweets.length} tasks for retrying`);
 };
 

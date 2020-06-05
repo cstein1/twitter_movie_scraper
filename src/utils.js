@@ -1,6 +1,5 @@
 'use strict';
 
-const hbs = require('handlebars');
 const path = require('path');
 const fs = require('fs');
 

@@ -71,11 +71,11 @@ const handleTweetProcessingError = async (e, tweet, { cache, twitter, tweetObjec
         return twitter.reply(tweet, e.message).then(() => e.status);
     }
     console.log(`Failed processing tweet: ${JSON.stringify(tweetObject)} - Error: ${e.valueOf()}`);
-    return cache.lpushAsync('Fail', [JSON.stringify(tweet)])
+    return cache.setAsync(`failure-${tweet.id_str}`, tweet)
         .then(() => e.name === 'NoVideoInTweet' ? null : FAIL);
 };
 
-const updateUserDownloads = (tweet, link, cache) => {
+const updateUserDownloads = (tweet, link, cache, originalBody) => {
     const today = (new Date).toISOString().substring(0, 10);
     const username = tweet.author.toLowerCase();
     const key = `user-${username}-${today}`;
@@ -86,17 +86,15 @@ const updateUserDownloads = (tweet, link, cache) => {
         "Location": tweet.coordinates,
         "Timestamp": tweet.created_at,
         "TweetID": tweet.id_str
-      }
-    };
-    return cache.lpushAsync(key, [JSON.stringify(entry)])
-        .then(() => cache.expireAsync(key, 2 * 24 * 60 * 60)); // store user's downloads for last two days
+      };
+    return cache.addTweet(entry); // store user's downloads for last two days
 };
 
 const handleTweetProcessingSuccess = (tweet, link, { cache, twitter }) => {
     return Promise.all([
-        cache.setAsync(`tweet-${tweet.referencing_tweet}`, link, 'EX', 7 * 24 * 60 * 60),
+        // cache.setAsync(`tweet-${tweet.referencing_tweet}`, link, 'EX', 7 * 24 * 60 * 60),
         updateUserDownloads(tweet, link, cache),
-        twitter.replyWithRedirect(tweet),
+        // twitter.replyWithRedirect(tweet),
         // sendNotification(tweet.author.toLowerCase(), cache),
     ]).then(() => SUCCESS);
 };
