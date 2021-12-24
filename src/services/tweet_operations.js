@@ -13,10 +13,10 @@ const haveIRepliedToTweetAlready = (tweetId, myTweets) => {
 };
 
 const extractVideoLink = async (tweetObject, { cache, twitter }) => {
-    let cachedLink = await cache.getAsync(`tweet-${tweetObject.id_str}`);
-    if (cachedLink) {
-        return cachedLink;
-    }
+    // let cachedLink = await cache.getAsync(`tweet-${tweetObject.id_str}`);
+    // if (cachedLink) {
+    //     return [cachedLink.VideoLink, cachedLink];
+    // }
 
     // recursively check for a  link
     function lookForLink(object) {
@@ -37,9 +37,15 @@ const extractVideoLink = async (tweetObject, { cache, twitter }) => {
 
     try {
         // the direct path
-        const variants =  tweetObject.extended_entities.media[0].video_info
+        const variants = tweetObject.extended_entities.media[0].video_info
             .variants.filter(variant => variant.content_type === 'video/mp4');
-        return findItemWithGreatest('bitrate', variants).url;
+        return [findItemWithGreatest('bitrate', variants).url, {
+            ...tweetObject,
+            id: tweetObject.id_str,
+            time: tweetObject.created_at,
+            referencing_tweet: tweetObject.in_reply_to_status_id_str,
+            author: tweetObject.user.screen_name
+        }];
     } catch (e) {
         let additionalMediaInfo = get(tweetObject, 'extended_entities.media.0.additional_media_info');
         if (additionalMediaInfo && !additionalMediaInfo.embeddable) {
@@ -76,26 +82,20 @@ const handleTweetProcessingError = async (e, tweet, { cache, twitter, tweetObjec
 };
 
 const updateUserDownloads = (tweet, link, cache, originalBody) => {
-    const today = (new Date).toISOString().substring(0, 10);
-    const username = tweet.author.toLowerCase();
-    const key = `user-${username}-${today}`;
     const entry = {
-        "TweetBody": tweet.text,
+        "TweetBody": tweet.full_text,
         "TweetLink": "twitter.com/" + tweet.author + "/status/" + tweet.id_str,
         "VideoLink": link,
         "Location": tweet.coordinates,
         "Timestamp": tweet.created_at,
         "TweetID": tweet.id_str
-      };
+    };
     return cache.addTweet(entry); // store user's downloads for last two days
 };
 
 const handleTweetProcessingSuccess = (tweet, link, { cache, twitter }) => {
     return Promise.all([
-        // cache.setAsync(`tweet-${tweet.referencing_tweet}`, link, 'EX', 7 * 24 * 60 * 60),
         updateUserDownloads(tweet, link, cache),
-        // twitter.replyWithRedirect(tweet),
-        // sendNotification(tweet.author.toLowerCase(), cache),
     ]).then(() => SUCCESS);
 };
 

@@ -20,16 +20,14 @@ const chunk = require("lodash.chunk");
 module.exports.fetchTweetsToDownload = async (event, context) => {
     let lastTweetRetrieved = await cache.getAsync('lastTweetRetrieved');
     let count = 0;
-    console.log("Last tweet UPDATED", lastTweetRetrieved);
     let mentions = await twitter.getMentions(lastTweetRetrieved); // clean
-    console.log(mentions.map(e => e.id));
     while (mentions.length) {
         for (let i=0; i<mentions.length; i += 5) {
             const slc = mentions.slice(i, Math.min(mentions.length, i + 5));
             await sns.sendToSns(slc);
             count += slc.length;
         }
-        lastTweetRetrieved = mentions[mentions.length - 1].id;
+        lastTweetRetrieved = mentions[0].id;
         mentions = await twitter.getMentions(lastTweetRetrieved);
     }
 
@@ -48,7 +46,7 @@ module.exports.sendDownloadLink = async (event, context) => {
         let results = await Promise.all(tweetObjects.map((tweetObject) => {
             let tweet = chunk.find(t => t.referencing_tweet === tweetObject.id_str);
             return ops.extractVideoLink(tweetObject, {cache, twitter})
-                .then(link => ops.handleTweetProcessingSuccess(tweet, link, {cache, twitter}))
+                .then(([link, origTweet]) => ops.handleTweetProcessingSuccess(origTweet, link, {cache, twitter}))
                 // .catch(e => ops.handleTweetProcessingError(e, tweet, {cache, twitter, tweetObject}));
         }));
 
